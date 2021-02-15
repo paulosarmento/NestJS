@@ -1,40 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { Holiday, HolidaysType } from './holidays.model';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { HolidayRepository } from './holiday.repository';
+import { Holiday } from './holiday.entity';
 
 @Injectable()
 export class HolidaysService {
-  private holidays = [];
+  constructor(
+    @InjectRepository(HolidayRepository)
+    private holidayRepository: HolidayRepository,
+  ) {}
 
-  getAllHolidays() {
-    return this.holidays;
+  async createHoliday(createHolidayDto: CreateHolidayDto): Promise<Holiday> {
+    return this.holidayRepository.createHoliday(createHolidayDto);
   }
 
-  createHoliday(createHolidayDto: CreateHolidayDto) {
-    const { name, date } = createHolidayDto;
-    const holiday: Holiday = {
-      id: uuidv4(),
-      name,
-      date,
-      type: HolidaysType.NACIONAL,
-    };
-    this.holidays.push(holiday);
-    return holiday;
-  }
+  async getHolidayById(id: number): Promise<Holiday> {
+    const found = await this.holidayRepository.findOne(id);
 
-  getHolidayById(id: string): Holiday {
-    return this.holidays.find((holiday) => holiday.id == id);
-  }
+    if (!found) {
+      throw new NotFoundException(`Holiday ${id} not found`);
+    }
 
-  deleteHoliday(id: string): void {
-    this.holidays = this.holidays.filter((holiday) => holiday.id !== id);
+    return found;
   }
-  updateHoliday(id: string, name: string, date: Date): Holiday {
-    const holiday = this.getHolidayById(id);
+  async deleteHoliday(id: number): Promise<void> {
+    const result = await this.holidayRepository.delete(id);
+    console.log(result);
+  }
+  async updateHoliday(id: number, name: string, date: Date): Promise<Holiday> {
+    const holiday = await this.getHolidayById(id);
     holiday.name = name;
     holiday.date = date;
 
+    await holiday.save();
     return holiday;
   }
 }
